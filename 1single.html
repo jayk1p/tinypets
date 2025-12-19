@@ -5,6 +5,38 @@ layout: page
 
 <input id="photo" type="file">
 <div id="results"></div>
+
+
+<script>
+  async function loaded(reader) {
+    const response = await fetch("https://jayk1p-tinypets.hf.space/api/predict/", {
+      method: "POST", 
+      body: JSON.stringify({ "data": [reader.result] }),
+      headers: { "Content-Type": "application/json" }
+    });
+    const json = await response.json();
+    
+    // This line fixes the 'undefined' or missing label error
+    const label = json.data[0].label || json.data[0]; 
+    
+    results.innerHTML = `<br/><img src="${reader.result}" width="300"> <p><b>${label}</b></p>`;
+  }
+  
+  function read() {
+    if (!photo.files[0]) return;
+    const reader = new FileReader();
+    reader.addEventListener('load', () => loaded(reader));
+    reader.readAsDataURL(photo.files[0]);
+  }
+  
+  photo.addEventListener('change', read);
+</script>
+
+
+
+
+
+<!--
 <script>
   async function loaded(reader) {
     const response = await fetch("https://jayk1p-tinypets.hf.space/api/predict/", {
@@ -22,3 +54,4 @@ layout: page
   }
   photo.addEventListener('input', read);
 </script>
+-->
