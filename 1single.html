@@ -6,32 +6,39 @@ layout: page
 <input id="photo" type="file">
 <div id="results"></div>
 
+<script type="module">
+	import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
-<script>
-  async function loaded(reader) {
-    results.innerHTML = "Connecting to Space...";
-    try {
-      const response = await fetch("https://jayk1p-tinypets.hf.space/api/predict/", {
-        method: "POST", 
-        body: JSON.stringify({ "data": [reader.result] }),
-        headers: { "Content-Type": "application/json" }
-      });
-      
-      if (!response.ok) throw new Error("Status: " + response.status);
+	async function loaded(file) {
+		results.innerHTML = "Predicting...";
+		try {
+			// 2. Connect to your specific space
+			const client = await Client.connect("jayk1p/tinypets");
+			
+			// 3. Run the prediction
+			const result = await client.predict("/predict", { 
+				img: file, 
+			});
 
-      const json = await response.json();
-      const label = json.data[0].label || json.data[0];
-      results.innerHTML = `<img src="${reader.result}" width="300"><h1>${label}</h1>`;
-    } catch (e) {
-      results.innerHTML = "Connection Error: " + e.message + ". <br>Double check that your Space is 'Running' on Hugging Face.";
-    }
-  }
-  
-  photo.onchange = () => {
-    const reader = new FileReader();
-    reader.onload = () => loaded(reader);
-    reader.readAsDataURL(photo.files[0]);
-  }
+			// 4. Display the result
+			const label = result.data[0].label || result.data[0];
+			const reader = new FileReader();
+			reader.onload = () => {
+				results.innerHTML = `<img src="${reader.result}" width="300"><h1>Result: ${label}</h1>`;
+			}
+			reader.readAsDataURL(file);
+			
+		} catch (e) {
+			results.innerHTML = "Error: " + e.message;
+			console.error(e);
+		}
+	}
+
+	photo.onchange = () => {
+		if (photo.files[0]) {
+			loaded(photo.files[0]);
+		}
+	}
 </script>
 
 
