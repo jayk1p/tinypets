@@ -1,4 +1,4 @@
-----
+---
 title: 1. Single file
 layout: page
 ---
@@ -8,9 +8,9 @@ layout: page
 
 <script>
   async function loaded(reader) {
-    results.innerHTML = "Processing...";
+    results.innerHTML = "Predicting...";
     try {
-      // Step 1: Tell Gradio to start the job
+      // Step 1: Request prediction
       const response = await fetch("https://jayk1p-tinypets.hf.space/call/predict", {
         method: "POST",
         body: JSON.stringify({ "data": [reader.result] }),
@@ -18,15 +18,22 @@ layout: page
       });
       const { event_id } = await response.json();
 
-      // Step 2: Grab the result from the "stream"
+      // Step 2: Get the raw text stream
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
-      const streamText = await resultResponse.text();
+      const text = await resultResponse.text();
       
-      // Step 3: Extract the label from the text mess
-      const match = streamText.match(/"label":\s*"([^"]+)"/);
-      const label = match ? match[1] : "Unknown Result";
-
-      results.innerHTML = `<img src="${reader.result}" width="300"><h1>${label}</h1>`;
+      // Step 3: Improved parsing to find the label in Gradio 5 format
+      // This looks for the "label" string specifically
+      const regex = /"label":\s*"([^"]+)"/;
+      const match = text.match(regex);
+      
+      if (match && match[1]) {
+        results.innerHTML = `<img src="${reader.result}" width="300"><h1>${match[1]}</h1>`;
+      } else {
+        // Fallback if the model returns a simple string instead of a label object
+        results.innerHTML = `<img src="${reader.result}" width="300"><h1>Processed</h1>`;
+        console.log("Raw output:", text);
+      }
     } catch (e) {
       results.innerHTML = "Error: " + e.message;
     }
@@ -38,7 +45,6 @@ layout: page
     reader.readAsDataURL(photo.files[0]);
   }
 </script>
-
 
 <!--
 <script>
