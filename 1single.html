@@ -10,7 +10,7 @@ layout: page
   async function loaded(reader) {
     results.innerHTML = "Predicting...";
     try {
-      // Step 1: Submit image
+      // Step 1: Send the image
       const response = await fetch("https://jayk1p-tinypets.hf.space/call/predict", {
         method: "POST",
         body: JSON.stringify({ "data": [reader.result] }),
@@ -22,17 +22,18 @@ layout: page
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
       const text = await resultResponse.text();
       
-      // Step 3: Find the animal and breed
-      // This regex specifically looks for the "label" value in the Gradio 5 data stream
-      const labelMatch = text.match(/"label":\s*"([^"]+)"/);
+      // Step 3: Find the breed in the mess of text
+      // We look for the "label" inside the "data" array
+      const match = text.match(/"label":\s*"([^"]+)"/);
       
-      if (labelMatch && labelMatch[1]) {
-        // SUCCESS: Show the image and the animal/breed name
-        results.innerHTML = `<img src="${reader.result}" width="300"><h1>${labelMatch[1]}</h1>`;
+      if (match && match[1]) {
+        // SUCCESS: Show the image and the animal/breed
+        results.innerHTML = `<img src="${reader.result}" width="300"><h1>${match[1]}</h1>`;
       } else {
-        // DEBUG: If it fails, show the raw text so we can see what the model is saying
-        results.innerHTML = `<img src="${reader.result}" width="300"><h1>Analysis Complete</h1><p>Check console for details.</p>`;
-        console.log("Raw Model Output:", text);
+        // If the regex failed, let's try to find ANY quoted string in the data section
+        const dataMatch = text.match(/data:\s*\["(.*?)"\]/);
+        const finalLabel = dataMatch ? dataMatch[1] : "Breed Not Found";
+        results.innerHTML = `<img src="${reader.result}" width="300"><h1>${finalLabel}</h1>`;
       }
     } catch (e) {
       results.innerHTML = "Error: " + e.message;
