@@ -1,7 +1,9 @@
 ---
-title: Cat vs Dog Classifier
+title: 1. Single file
 layout: page
 ---
+<input id="photo" type="file">
+<div id="results"></div>
 
 <script type="module">
   import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
@@ -9,43 +11,33 @@ layout: page
   const photoInput = document.getElementById("photo");
   const resultsDiv = document.getElementById("results");
 
-  async function predict(blob) {
-    resultsDiv.innerHTML = "<h1>Analyzing...</h1>";
-    try {
-      const app = await Client.connect("jayk1p/tinypets");
-      const result = await app.predict("/predict", [blob]);
+  async function predict(file) {
+    // 1. CHANGE: Show the image IMMEDIATELY so it doesn't look stalled
+    resultsDiv.innerHTML = `
+      <img src="${URL.createObjectURL(file)}" width="300">
+      <h1>Analyzing...</h1>
+    `;
 
-      // 1. Get the raw prediction (True or False)
-      let rawPrediction = result.data[0].label; 
-      
-      // 2. CHANGE: The Translation Logic
-      // If the model says "True", we show "Cat". If "False", we show "Dog".
-      let finalName = "";
-      if (rawPrediction === "True") {
-        finalName = "Cat 🐱";
-      } else if (rawPrediction === "False") {
-        finalName = "Dog 🐶";
-      } else {
-        finalName = rawPrediction; // Fallback if it's already a breed name
-      }
+    try {
+      // 2. CHANGE: Connect and Predict using the official library
+      const app = await Client.connect("jayk1p/tinypets");
+      const result = await app.predict("/predict", [file]);
+
+      // 3. CHANGE: Logic to turn True/False into Cat/Dog
+      let raw = result.data[0].label;
+      let breed = raw === "True" ? "Cat" : raw === "False" ? "Dog" : raw;
 
       resultsDiv.innerHTML = `
-        <img src="${URL.createObjectURL(blob)}" width="300" style="border-radius:10px;">
-        <h1 style="color: #2e7d32;">It's a ${finalName}!</h1>
+        <img src="${URL.createObjectURL(file)}" width="300">
+        <h1>It's a ${breed}!</h1>
       `;
     } catch (e) {
-      resultsDiv.innerHTML = "<h1>Error</h1><p>" + e.message + "</p>";
+      resultsDiv.innerHTML += "<p>Error: " + e.message + "</p>";
     }
   }
 
-  photoInput.onchange = async () => {
+  photoInput.onchange = () => {
     const file = photoInput.files[0];
     if (file) predict(file);
   }
 </script>
-
-<div style="text-align:center; font-family: sans-serif;">
-  <h2>Pet Classifier</h2>
-  <input id="photo" type="file" accept="image/*" style="margin-bottom:20px;">
-  <div id="results"></div>
-</div>
