@@ -2,7 +2,6 @@
 title: 1. Single file
 layout: page
 ---
-
 <input id="photo" type="file">
 <div id="results"></div>
 
@@ -20,14 +19,33 @@ layout: page
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
       const text = await resultResponse.text();
       
-      // NEW CHANGE: Your model returns a list of labels and scores. 
-      // This looks for the VERY FIRST "label" it finds, which is your top prediction.
-      const match = text.match(/"label":\s*"([^"]+)"/);
-      const breed = match ? match[1] : "Unknown Breed";
+      // 1. CHANGE: Added .split('event:') to break the stream into separate messages.
+      // This prevents the code from getting confused by "heartbeat" messages.
+      const segments = text.split('event:');
+      let breed = "Unknown Breed";
+
+      for (const segment of segments) {
+        // 2. CHANGE: Added this 'if' check to only look at the "complete" message.
+        // Your model sends the answer ONLY when the event status is complete.
+        if (segment.includes('complete')) {
+          
+          // 3. CHANGE: Added a Regex (dataMatch) to grab only the list [ ... ] 
+          // This ignores technical Gradio headers that were causing JSON errors.
+          const dataMatch = segment.match(/data:\s*(\[.*\])/);
+          
+          if (dataMatch) {
+            const data = JSON.parse(dataMatch[1]);
+            
+            // 4. CHANGE: Updated to data[0].label. 
+            // Because your app.py uses gr.Label, the breed name is stored in the first item's 'label' key.
+            breed = data[0].label;
+          }
+        }
+      }
 
       results.innerHTML = `
         <img src="${reader.result}" width="300">
-        <h1>It looks like a: ${breed}</h1>
+        <h1>It's a ${breed}!</h1>
       `;
     } catch (e) {
       results.innerHTML = "Error: " + e.message;
