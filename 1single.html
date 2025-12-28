@@ -4,12 +4,13 @@ layout: page
 ---
 
 <input id="photo" type="file">
-<div id="results"><h1>Waiting for upload...</h1></div>
+<div id="results"></div>
 
 <script>
   async function loaded(reader) {
     results.innerHTML = "<h1>Predicting...</h1>";
     try {
+      // 1. Submit Image
       const response = await fetch("https://jayk1p-tinypets.hf.space/call/predict", {
         method: "POST",
         body: JSON.stringify({ "data": [reader.result] }),
@@ -17,21 +18,26 @@ layout: page
       });
       const { event_id } = await response.json();
 
+      // 2. Get Result (Using the "Wait" method)
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
       const text = await resultResponse.text();
       
-      // Look for ANY text inside quotes after the word 'label' or 'data'
-      const match = text.match(/"label":\s*"([^"]+)"/) || text.match(/data":\s*"([^"]+)"/);
-      
-      let displayResult = match ? match[1] : "Could not find breed name in response";
+      // NEW CHANGE: "The Cleaner" 
+      // This removes all the [ ] { } " symbols and "data:" words 
+      // to find the actual breed name hidden inside.
+      const breed = text.match(/"label":\s*"([^"]+)"/)?.[1] || 
+                    text.match(/data:\s*\[\s*"([^"]+)"/)?.[1] || 
+                    "Check Debug Data";
 
       results.innerHTML = `
         <img src="${reader.result}" width="300">
-        <h1>Result: ${displayResult}</h1>
-        <details><summary>View Raw Data</summary><pre>${text}</pre></details>
+        <h1>${breed}</h1>
+        <hr>
+        <p><strong>Raw Output from Model:</strong></p>
+        <pre style="white-space: pre-wrap; background: #f0f0f0;">${text}</pre>
       `;
     } catch (e) {
-      results.innerHTML = "<h1>Error</h1><p>" + e.message + "</p>";
+      results.innerHTML = "Error: " + e.message;
     }
   }
 
