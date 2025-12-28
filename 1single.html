@@ -20,22 +20,15 @@ layout: page
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
       const text = await resultResponse.text();
       
-      // NEW CHANGE: Broad search for any quoted text that isn't a technical keyword
-      // It looks for things like "Beagle" or "Persian" by excluding Gradio keywords
-      const allMatches = [...text.matchAll(/"([^"]+)"/g)];
-      const technicalWords = ["label", "confidences", "data", "complete", "predict", "event", "heartbeat"];
-      
-      let breed = "Breed Not Found";
-      for (let m of allMatches) {
-        let word = m[1];
-        if (!technicalWords.includes(word.toLowerCase()) && word.length > 2) {
-          breed = word; // Grab the first non-technical word found
-          break;
-        }
-      }
+      // NEW CHANGE: Your model returns a list of labels and scores. 
+      // This looks for the VERY FIRST "label" it finds, which is your top prediction.
+      const match = text.match(/"label":\s*"([^"]+)"/);
+      const breed = match ? match[1] : "Unknown Breed";
 
-      results.innerHTML = `<img src="${reader.result}" width="300"><h1>${breed}</h1>`;
-      console.log("Full Output:", text);
+      results.innerHTML = `
+        <img src="${reader.result}" width="300">
+        <h1>It looks like a: ${breed}</h1>
+      `;
     } catch (e) {
       results.innerHTML = "Error: " + e.message;
     }
