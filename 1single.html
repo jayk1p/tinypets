@@ -1,7 +1,16 @@
+---
+title: 1. Single file
+layout: page
+---
+
+<input id="photo" type="file">
+<div id="results"></div>
+
 <script>
   async function loaded(reader) {
     results.innerHTML = "Predicting...";
     try {
+      // Step 1: Send the image to your Space
       const response = await fetch("https://jayk1p-tinypets.hf.space/call/predict", {
         method: "POST",
         body: JSON.stringify({ "data": [reader.result] }),
@@ -9,14 +18,26 @@
       });
       const { event_id } = await response.json();
 
+      // Step 2: Get the result stream
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
       const text = await resultResponse.text();
       
-      // This regex searches for the first word in quotes after the word 'data'
-      const match = text.match(/data":\s*"([^"]+)"/) || text.match(/"label":\s*"([^"]+)"/);
-      const breed = match ? match[1] : "Breed Not Found";
+      // Step 3: Brute Force Parser
+      // We look for "label" first, then fallback to the first quoted string in the data
+      const labelMatch = text.match(/"label":\s*"([^"]+)"/);
+      const genericMatch = text.match(/data:\s*\[\s*"([^"]+)"/);
+      
+      const breed = (labelMatch && labelMatch[1]) || (genericMatch && genericMatch[1]) || "Result Found (Check Console)";
 
-      results.innerHTML = `<img src="${reader.result}" width="300"><h1>${breed}</h1>`;
+      // Step 4: Display Original Design
+      results.innerHTML = `
+        <img src="${reader.result}" width="300" style="margin-top:20px;">
+        <h1>${breed}</h1>
+      `;
+
+      // Log the full text so we can debug if it still says "Result Found"
+      console.log("Full Model Response:", text);
+
     } catch (e) {
       results.innerHTML = "Error: " + e.message;
     }
