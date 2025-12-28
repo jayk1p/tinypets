@@ -10,7 +10,7 @@ layout: page
   async function loaded(reader) {
     results.innerHTML = "<h1>Predicting...</h1>";
     try {
-      // 1. Submit Image
+      // 1. Tell Hugging Face to start
       const response = await fetch("https://jayk1p-tinypets.hf.space/call/predict", {
         method: "POST",
         body: JSON.stringify({ "data": [reader.result] }),
@@ -18,24 +18,28 @@ layout: page
       });
       const { event_id } = await response.json();
 
-      // 2. Get Result (Using the "Wait" method)
+      // 2. Listen for the "complete" event
       const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
       const text = await resultResponse.text();
       
-      // NEW CHANGE: "The Cleaner" 
-      // This removes all the [ ] { } " symbols and "data:" words 
-      // to find the actual breed name hidden inside.
-      const breed = text.match(/"label":\s*"([^"]+)"/)?.[1] || 
-                    text.match(/data:\s*\[\s*"([^"]+)"/)?.[1] || 
-                    "Check Debug Data";
+      // NEW CHANGE: Look for the 'complete' event block specifically
+      // Gradio 5 sends several blocks; the last one usually contains the answer
+      const parts = text.split('event:');
+      let finalLabel = "Breed Not Found";
 
+      for (let part of parts) {
+        if (part.includes('complete')) {
+          const match = part.match(/"label":\s*"([^"]+)"/);
+          if (match) finalLabel = match[1];
+        }
+      }
+
+      // 3. Original Design Display
       results.innerHTML = `
         <img src="${reader.result}" width="300">
-        <h1>${breed}</h1>
-        <hr>
-        <p><strong>Raw Output from Model:</strong></p>
-        <pre style="white-space: pre-wrap; background: #f0f0f0;">${text}</pre>
+        <h1>${finalLabel}</h1>
       `;
+
     } catch (e) {
       results.innerHTML = "Error: " + e.message;
     }
