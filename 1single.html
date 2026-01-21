@@ -6,50 +6,49 @@ layout: page
 <div id="results"></div>
 
 <script>
-  async function loaded(reader) {
-    // Show the uploaded image immediately
-    results.innerHTML = `<img src="${reader.result}" width="300"><h1>Analyzing...</h1>`;
-    
-    try {
-      const response = await fetch("https://jayk1p-tinypets.hf.space/call/predict", {
-        method: "POST",
-        body: JSON.stringify({ "data": [reader.result] }),
-        headers: { "Content-Type": "application/json" }
-      });
-      const { event_id } = await response.json();
+  function predict(reader) {
+    // 1. Show image and status immediately
+    results.innerHTML = `<img src="${reader.result}" width="300"><h1>Checking...</h1>`;
 
-      const resultResponse = await fetch(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
-      const text = await resultResponse.text();
-      
-      const segments = text.split('event:');
-      let breed = "Unknown";
+    fetch("https://jayk1p-tinypets.hf.space/call/predict", {
+      method: "POST",
+      body: JSON.stringify({ "data": [reader.result] }),
+      headers: { "Content-Type": "application/json" }
+    })
+    .then(r => r.json())
+    .then(({ event_id }) => {
+      // 2. Open a direct pipe to Hugging Face
+      const sse = new EventSource(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
 
-      for (const segment of segments) {
-        if (segment.includes('complete')) {
-          // Look for "True" or "False" in the labels
-          const match = segment.match(/"label":\s*"([^"]+)"/);
-          if (match) {
-            let val = match[1];
-            // TRANSLATION: True = Cat, False = Dog
-            if (val === "True") { breed = "Cat"; }
-            else if (val === "False") { breed = "Dog"; }
-            else { breed = val; }
-          }
+      sse.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        
+        // 3. When the final answer arrives
+        if (Array.isArray(data) && data[0]) {
+          const raw = String(data[0].label || data[0]); // Get whatever the model sent
+          
+          // 4. THE FIX: Force it to say CAT or DOG, otherwise show the raw value
+          let answer = "";
+          if (raw.toLowerCase().includes("true")) { answer = "CAT"; }
+          else if (raw.toLowerCase().includes("false")) { answer = "DOG"; }
+          else { answer = raw.toUpperCase(); } // If it's a breed name, show it!
+
+          results.innerHTML = `
+            <img src="${reader.result}" width="300">
+            <h1>It is a: ${answer}</h1>
+          `;
+          sse.close();
         }
-      }
+      };
 
-      results.innerHTML = `
-        <img src="${reader.result}" width="300">
-        <h1>It's a ${breed}!</h1>
-      `;
-    } catch (e) {
-      results.innerHTML = "Error: " + e.message;
-    }
+      sse.onerror = () => { sse.close(); };
+    })
+    .catch(e => { results.innerHTML = "<h1>Connection Error</h1>"; });
   }
 
   photo.onchange = () => {
     const reader = new FileReader();
-    reader.onload = () => loaded(reader);
+    reader.onload = () => predict(reader);
     reader.readAsDataURL(photo.files[0]);
   }
 </script>
