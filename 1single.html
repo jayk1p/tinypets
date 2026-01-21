@@ -5,50 +5,37 @@ layout: page
 <input id="photo" type="file">
 <div id="results"></div>
 
-<script>
-  function predict(reader) {
-    // 1. Show image and status immediately
-    results.innerHTML = `<img src="${reader.result}" width="300"><h1>Checking...</h1>`;
+<script type="module">
+  import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
-    fetch("https://jayk1p-tinypets.hf.space/call/predict", {
-      method: "POST",
-      body: JSON.stringify({ "data": [reader.result] }),
-      headers: { "Content-Type": "application/json" }
-    })
-    .then(r => r.json())
-    .then(({ event_id }) => {
-      // 2. Open a direct pipe to Hugging Face
-      const sse = new EventSource(`https://jayk1p-tinypets.hf.space/call/predict/${event_id}`);
+  // Safety Guard: Only run if the elements exist on this page
+  const photoInput = document.getElementById("photo");
+  const resultsDiv = document.getElementById("results");
 
-      sse.onmessage = (msg) => {
-        const data = JSON.parse(msg.data);
-        
-        // 3. When the final answer arrives
-        if (Array.isArray(data) && data[0]) {
-          const raw = String(data[0].label || data[0]); // Get whatever the model sent
-          
-          // 4. THE FIX: Force it to say CAT or DOG, otherwise show the raw value
-          let answer = "";
-          if (raw.toLowerCase().includes("true")) { answer = "CAT"; }
-          else if (raw.toLowerCase().includes("false")) { answer = "DOG"; }
-          else { answer = raw.toUpperCase(); } // If it's a breed name, show it!
+  if (photoInput && resultsDiv) {
+    async function predict(file) {
+      resultsDiv.innerHTML = `<img src="${URL.createObjectURL(file)}" width="300"><h1>Checking...</h1>`;
 
-          results.innerHTML = `
-            <img src="${reader.result}" width="300">
-            <h1>It is a: ${answer}</h1>
-          `;
-          sse.close();
-        }
-      };
+      try {
+        const app = await Client.connect("jayk1p/tinypets");
+        const result = await app.predict("/predict", [file]);
 
-      sse.onerror = () => { sse.close(); };
-    })
-    .catch(e => { results.innerHTML = "<h1>Connection Error</h1>"; });
-  }
+        const val = String(result.data[0].label);
+        // Translate True/False to Cat/Dog
+        const answer = (val === "True") ? "CAT" : (val === "False") ? "DOG" : val.toUpperCase();
 
-  photo.onchange = () => {
-    const reader = new FileReader();
-    reader.onload = () => predict(reader);
-    reader.readAsDataURL(photo.files[0]);
+        resultsDiv.innerHTML = `
+          <img src="${URL.createObjectURL(file)}" width="300">
+          <h1>It is a: ${answer}</h1>
+        `;
+      } catch (e) {
+        resultsDiv.innerHTML += "<p>Error: " + e.message + "</p>";
+      }
+    }
+
+    photoInput.onchange = () => {
+      const file = photoInput.files[0];
+      if (file) predict(file);
+    };
   }
 </script>
