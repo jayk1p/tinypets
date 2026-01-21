@@ -1,41 +1,39 @@
 ---
-title: 1. Single file
-layout: page
+layout: null
 ---
-<input id="photo" type="file">
-<div id="results"></div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pet Checker</title>
+</head>
+<body>
+    <input id="photo" type="file" accept="image/*">
+    <div id="results"></div>
 
-<script type="module">
-  import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+    <script type="module">
+        import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
 
-  // Safety Guard: Only run if the elements exist on this page
-  const photoInput = document.getElementById("photo");
-  const resultsDiv = document.getElementById("results");
+        const photoInput = document.getElementById("photo");
+        const resultsDiv = document.getElementById("results");
 
-  if (photoInput && resultsDiv) {
-    async function predict(file) {
-      resultsDiv.innerHTML = `<img src="${URL.createObjectURL(file)}" width="300"><h1>Checking...</h1>`;
+        photoInput.onchange = async () => {
+            const file = photoInput.files[0];
+            if (!file) return;
 
-      try {
-        const app = await Client.connect("jayk1p/tinypets");
-        const result = await app.predict("/predict", [file]);
+            resultsDiv.innerHTML = `<img src="${URL.createObjectURL(file)}" width="300"><h1 id="status">Checking...</h1>`;
 
-        const val = String(result.data[0].label);
-        // Translate True/False to Cat/Dog
-        const answer = (val === "True") ? "CAT" : (val === "False") ? "DOG" : val.toUpperCase();
+            try {
+                const app = await Client.connect("jayk1p/tinypets");
+                const result = await app.predict("/predict", [file]);
 
-        resultsDiv.innerHTML = `
-          <img src="${URL.createObjectURL(file)}" width="300">
-          <h1>It is a: ${answer}</h1>
-        `;
-      } catch (e) {
-        resultsDiv.innerHTML += "<p>Error: " + e.message + "</p>";
-      }
-    }
+                const val = String(result.data[0].label);
+                const answer = (val === "True") ? "CAT" : (val === "False") ? "DOG" : val.toUpperCase();
 
-    photoInput.onchange = () => {
-      const file = photoInput.files[0];
-      if (file) predict(file);
-    };
-  }
-</script>
+                document.getElementById("status").innerText = "It is a: " + answer;
+            } catch (e) {
+                document.getElementById("status").innerText = "Error: " + e.message;
+            }
+        };
+    </script>
+</body>
+</html>
